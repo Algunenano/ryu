@@ -402,10 +402,10 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
     printf("len=%d\n", len);
 #endif
     for (int32_t i = len - 1; i >= 0; --i) {
-      const uint32_t j = p10bits - e2;
+      const int32_t j = ((int32_t) p10bits) - e2;
       // Temporary: j is usually around 128, and by shifting a bit, we push it to 128 or above, which is
       // a slightly faster code path in mulShift_mod1e9. Instead, we can just increase the multipliers.
-      const uint32_t digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
+      const uint32_t digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], j + 8);
       if (nonzero) {
         append_nine_digits(digits, result + index);
         index += 9;
@@ -420,7 +420,8 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
   if (!nonzero) {
     result[index++] = '0';
   }
-  if (precision > 0) {
+  const bool printDecimalPoint = precision > 0;
+  if (printDecimalPoint) {
     result[index++] = '.';
   }
 #ifdef RYU_DEBUG
@@ -532,6 +533,18 @@ int d2fixed_buffered_n(double d, uint32_t precision, char* result) {
     memset(result + index, '0', precision);
     index += precision;
   }
+
+#if RYU_NO_TRAILING_ZEROS
+  if (printDecimalPoint) {
+    while (result[index - 1] == '0') {
+      index--;
+    }
+    if (result[index - 1] == '.') {
+      index--;
+    }
+  }
+#endif
+
   return index;
 }
 
@@ -771,6 +784,18 @@ int d2exp_buffered_n(double d, uint32_t precision, char* result) {
       }
     }
   }
+
+#if RYU_NO_TRAILING_ZEROS
+  if (printDecimalPoint) {
+    while (result[index - 1] == '0') {
+      index--;
+    }
+    if (result[index - 1] == '.') {
+      index--;
+    }
+  }
+#endif
+
   result[index++] = 'e';
   if (exp < 0) {
     result[index++] = '-';
